@@ -1,5 +1,7 @@
 import requests
 import sys
+import xml.etree.ElementTree as ET
+from datetime import datetime
 
 def login(session):
   login_form = {"value(action)" : "Login", "value(username)" : "admin",
@@ -56,9 +58,28 @@ def first_run(session):
                               data=payload, headers=headers)
 
   if log_xml_data.status_code == requests.codes.ok:
-    return log_xml_data
+    return log_xml_data.content
   else:
     return False
+
+def parse_log(log_xml):
+  root = ET.fromstring(log_xml)
+  records = root[0][0]
+
+  log = []
+
+  for record in records.findall('record'):
+    # Dec 23, 2014 3:43:13  PM
+    date = datetime.strptime(record.find('time').text, '%b %d, %Y %I:%M:%S  %p')
+    capacity = record.find('capacity').text
+    input_voltage = record.find('inputVolt').text
+    output_voltage = record.find('outputVolt').text
+    load = record.find('load').text
+    runtime = record.find('runtime').text
+    log.append((date, {"capacity" : capacity, "input_voltage" : input_voltage,
+                       "output_voltage" : output_voltage, "load" : load,
+                       "runtime" : runtime}))
+  return log
 
 if __name__ == "__main__":
 
@@ -76,3 +97,5 @@ if __name__ == "__main__":
     print("Retrieved full log")
   else:
     sys.exit(1)
+  # now we'll parse the xml and build a list with the data
+  log = parse_log(log_xml)
