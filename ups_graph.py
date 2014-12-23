@@ -2,6 +2,7 @@ import requests
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
+import pickle
 
 def login(session):
   login_form = {"value(action)" : "Login", "value(username)" : "admin",
@@ -81,6 +82,9 @@ def parse_log(log_xml):
                        "runtime" : runtime}))
   return log
 
+def pickle_log(log):
+  pickle.dump(log, open('log.p', 'wb'))
+
 if __name__ == "__main__":
 
   # let's start the session so we can stay logged in
@@ -99,3 +103,5 @@ if __name__ == "__main__":
     sys.exit(1)
   # now we'll parse the xml and build a list with the data
   log = parse_log(log_xml)
+  # we'll pickle the log so it's easier to read next time
+  pickle_log(log)
