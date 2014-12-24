@@ -64,24 +64,35 @@ def retrieve_xml(session, num_requests):
   else:
     return False
 
-def parse_log(log_xml):
+def parse_log(log_xml, log):
   root = ET.fromstring(log_xml)
   records = root[0][0]
 
-  log = []
-
+  ctr = 0
   for record in records.findall('record'):
     # Dec 23, 2014 3:43:13  PM
     date = datetime.strptime(record.find('time').text, '%b %d, %Y %I:%M:%S  %p')
+
     capacity = record.find('capacity').text
     input_voltage = record.find('inputVolt').text
     output_voltage = record.find('outputVolt').text
     load = record.find('load').text
     runtime = record.find('runtime').text
-    log.append((date, {"capacity" : capacity, "input_voltage" : input_voltage,
-                       "output_voltage" : output_voltage, "load" : load,
-                       "runtime" : runtime}))
-  print("Parsed " + str(len(log)) + " records")
+    entry = (date, {"capacity" : capacity, "input_voltage" : input_voltage,
+                    "output_voltage" : output_voltage, "load" : load,
+                    "runtime" : runtime})
+
+    # check that the current record is not same as the latest existing record
+    if len(log) == 0 or entry != log[0]:
+      log.append(entry)
+      ctr += 1
+    else:
+      print("Found existing record.")
+      break
+
+  print(str(ctr) + " new records added.")
+  print("Parsed " + str(len(log)) + " total records")
+  log.sort(reverse=True) # desc sort the log so we can easily check last date
   return log
 
 def pickle_log(log):
@@ -115,6 +126,7 @@ if __name__ == "__main__":
     else:
       print("Query failed")
       sys.exit(1)
+    log = []
   else:
     # if not, then we'll just query for the past 'num_requests' entries
     print("Querying the last " + num_requests + " records")
@@ -124,9 +136,11 @@ if __name__ == "__main__":
     else:
       print("Query failed")
       sys.exit(1)
+    # now we'll read the pickled log so the new data can be added
+    log = pickle.load(open('log.p', 'rb'))
 
+  # now we'll parse the xml and build/update a list with the data
+  log = parse_log(log_xml, log)
 
-  # now we'll parse the xml and build a list with the data
-  log = parse_log(log_xml)
   # we'll pickle the log so it's easier to read next time
   pickle_log(log)
