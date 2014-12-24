@@ -3,6 +3,7 @@ import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import pickle
+import os.path
 
 def login(session):
   login_form = {"value(action)" : "Login", "value(username)" : "admin",
@@ -17,8 +18,8 @@ def login(session):
   else:
     return False
 
-def first_run(session):
-  """Get the past 10,000 log entries"""
+def retrieve_xml(session, num_requests):
+  """Get the past 'num_requests' log entries"""
   headers = {'content-type': 'application/xml'}
   payload = '''<?xml version="1.0" encoding="UTF-8" ?>
             <ppbe>
@@ -27,7 +28,7 @@ def first_run(session):
             </target>
             <inquire>
             <query>
-            <state current="0" lastRequest="false" next="true" sizePerRequest="10000" />
+            <state current="0" lastRequest="false" next="true" sizePerRequest="''' + num_requests + '''" />
             <filter>
             <sizePerPage>10000</sizePerPage>
             <date>
@@ -80,12 +81,18 @@ def parse_log(log_xml):
     log.append((date, {"capacity" : capacity, "input_voltage" : input_voltage,
                        "output_voltage" : output_voltage, "load" : load,
                        "runtime" : runtime}))
+  print("Parsed " + str(len(log)) + " records")
   return log
 
 def pickle_log(log):
   pickle.dump(log, open('log.p', 'wb'))
+  print("Saved pickled log")
 
 if __name__ == "__main__":
+
+  # the number of log entries to query when updating if log exists
+  # this is later set to 10000 (theoretical maximum) if log does not exist
+  num_requests = '10'
 
   # let's start the session so we can stay logged in
   session = requests.Session()
@@ -93,14 +100,32 @@ if __name__ == "__main__":
   if login:
     print("Logged in")
   else:
+    print("Login failed")
     sys.exit(1)
   # we're now logged in
+
+  if not os.path.isfile('log.p'):
   # if this is our first run, then we need to get all existing records
-  log_xml = first_run(session)
-  if log_xml:
-    print("Retrieved full log")
+    # since there's no existing log, we'll set max requests
+    num_requests = '10000'
+    print("Querying full log")
+    log_xml = retrieve_xml(session, num_requests)
+    if log_xml:
+      print("Retrieved full log")
+    else:
+      print("Query failed")
+      sys.exit(1)
   else:
-    sys.exit(1)
+    # if not, then we'll just query for the past 'num_requests' entries
+    print("Querying the last " + num_requests + " records")
+    log_xml = retrieve_xml(session, num_requests)
+    if log_xml:
+      print("Retrieved last " + num_requests + " records")
+    else:
+      print("Query failed")
+      sys.exit(1)
+
+
   # now we'll parse the xml and build a list with the data
   log = parse_log(log_xml)
   # we'll pickle the log so it's easier to read next time
