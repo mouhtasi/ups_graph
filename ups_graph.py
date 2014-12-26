@@ -1,9 +1,10 @@
 import requests
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta
 import pickle
 import os.path
+import pylab
 
 def login(session):
   login_form = {"value(action)" : "Login", "value(username)" : "admin",
@@ -99,6 +100,38 @@ def pickle_log(log):
   pickle.dump(log, open('log.p', 'wb'))
   print("Saved pickled log")
 
+def draw_graph(log, rang, data, ytext):
+  print("Plotting " + data + " graph for the past " + rang + ".")
+  x = []
+  y = []
+  if rang == "all":
+    pass
+  elif rang == "year":
+    pass
+  elif rang == "month":
+    pass
+  elif rang == "week":
+    pass
+  elif rang == "day":
+    now = datetime.now()
+
+    for record in log:
+      if (now - record[0]) <= timedelta(days=1):
+        x.append(record[0])
+        y.append(record[1][data])
+      else:
+        break
+
+  x = x[::-1] # reverse so data is oldest-first
+  y = y[::-1]
+
+  pylab.ylim(0, 100)
+  pylab.xlabel("date")
+  pylab.ylabel(ytext)
+  pylab.grid(True)
+  pylab.plot(x, y)
+  pylab.savefig(data + rang + ".png")
+
 if __name__ == "__main__":
 
   # the number of log entries to query when updating if log exists
@@ -144,3 +177,5 @@ if __name__ == "__main__":
 
   # we'll pickle the log so it's easier to read next time
   pickle_log(log)
+
+  draw_graph(log, "day", "load", "load (%)")
